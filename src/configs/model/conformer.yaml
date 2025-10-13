@@ -1,0 +1,9 @@
+_target_: src.model.conformer_model.Conformer
+n_feats: 128
+d_model: 256
+num_heads: 4
+num_layers: 12
+d_ff: null
+dropout: 0.1
+kernel_size: 31
+conv_expansion_factor: 2

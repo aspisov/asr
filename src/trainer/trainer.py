@@ -43,6 +43,8 @@ class Trainer(BaseTrainer):
         outputs = self.model(**batch)
         batch.update(outputs)
 
+        self._attach_predictions(batch)
+
         all_losses = self.criterion(**batch)
         batch.update(all_losses)
 
@@ -90,34 +92,83 @@ class Trainer(BaseTrainer):
         self.writer.add_image("spectrogram", image)
 
     def log_predictions(
-        self, text, log_probs, log_probs_length, audio_path, examples_to_log=10, **batch
+        self,
+        text,
+        log_probs,
+        log_probs_length,
+        audio_path,
+        predictions=None,
+        raw_predictions=None,
+        beam_predictions=None,
+        examples_to_log=10,
+        **batch,
     ):
-        # TODO add beam search
-        # Note: by improving text encoder and metrics design
-        # this logging can also be improved significantly
-
-        argmax_inds = log_probs.cpu().argmax(-1).numpy()
-        argmax_inds = [
-            inds[: int(ind_len)]
-            for inds, ind_len in zip(argmax_inds, log_probs_length.numpy())
-        ]
-        argmax_texts_raw = [self.text_encoder.decode(inds) for inds in argmax_inds]
-        argmax_texts = [self.text_encoder.ctc_decode(inds) for inds in argmax_inds]
-        tuples = list(zip(argmax_texts, text, argmax_texts_raw, audio_path))
+        predictions = (
+            predictions if predictions is not None else batch.get("predictions", [])
+        )
+        raw_predictions = (
+            raw_predictions
+            if raw_predictions is not None
+            else batch.get("raw_predictions", [])
+        )
+        beam_predictions = (
+            beam_predictions
+            if beam_predictions is not None
+            else batch.get("beam_predictions", [])
+        )
+        tuples = list(
+            zip(
+                predictions,
+                beam_predictions,
+                text,
+                raw_predictions,
+                audio_path,
+            )
+        )
 
         rows = {}
-        for pred, target, raw_pred, audio_path in tuples[:examples_to_log]:
+        for argmax_pred, beam_pred, target, raw_pred, audio_path in tuples[
+            :examples_to_log
+        ]:
             target = self.text_encoder.normalize_text(target)
-            wer = calc_wer(target, pred) * 100
-            cer = calc_cer(target, pred) * 100
+            chosen_prediction = beam_pred if beam_pred else argmax_pred
+            wer = calc_wer(target, chosen_prediction) * 100
+            cer = calc_cer(target, chosen_prediction) * 100
 
             rows[Path(audio_path).name] = {
                 "target": target,
                 "raw prediction": raw_pred,
-                "predictions": pred,
+                "argmax": argmax_pred,
+                "beam": beam_pred,
                 "wer": wer,
                 "cer": cer,
             }
         self.writer.add_table(
             "predictions", pd.DataFrame.from_dict(rows, orient="index")
         )
+
+    def _attach_predictions(self, batch):
+        if "log_probs" not in batch:
+            return
+
+        log_probs = batch["log_probs"].detach().cpu()
+        lengths = batch["log_probs_length"].detach().cpu()
+
+        predictions = []
+        raw_predictions = []
+        beam_predictions = []
+        beam_size = self.config.trainer.get("beam_size")
+
+        for sample_log_prob, length in zip(log_probs, lengths):
+            decoded, raw, beams = self.text_encoder.decode_logits(
+                sample_log_prob,
+                int(length),
+                beam_size=beam_size,
+            )
+            predictions.append(decoded)
+            raw_predictions.append(raw)
+            beam_predictions.append(beams[0].text if beams else decoded)
+
+        batch["predictions"] = predictions
+        batch["raw_predictions"] = raw_predictions
+        batch["beam_predictions"] = beam_predictions

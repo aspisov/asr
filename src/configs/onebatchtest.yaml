@@ -1,9 +1,9 @@
 defaults:
-  - model: baseline
-  - writer: wandb
+  - model: conformer
+  - writer: cometml
   - metrics: example
-  - datasets: example
-  - dataloader: example
+  - datasets: onebatchtest
+  - dataloader: onebatchtest
   - transforms: example_only_instance
   - _self_
 optimizer:
@@ -11,7 +11,7 @@ optimizer:
   lr: 3e-4
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.OneCycleLR
-  max_lr: 1e-2
+  max_lr: 1e-3
   pct_start: 0.1
   steps_per_epoch: ${trainer.epoch_len}
   epochs: ${trainer.n_epochs}
@@ -22,14 +22,15 @@ text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
 trainer:
   log_step: 50
-  n_epochs: 50
-  epoch_len: 200
+  n_epochs: 20
+  epoch_len: 10
   device_tensors: ["spectrogram", "text_encoded"] # which tensors should be on device (ex. GPU)
   resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
-  device: auto # device name or "auto"
-  override: False # if True, will override the previous run with the same name
+  device: "auto" # device name or "auto"
+  override: True # if True, will override the previous run with the same name
   monitor: "min val_WER_(Argmax)" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric
   save_period: 5 # checkpoint each save_period epochs in addition to the best epoch
   early_stop: ${trainer.n_epochs} # epochs for early stopping
   save_dir: "saved"
   seed: 1
+  beam_size: 5

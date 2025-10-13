@@ -52,15 +52,20 @@ def plot_spectrogram(spectrogram, name=None):
     Returns:
         image (Image): image of the spectrogram
     """
-    plt.figure(figsize=(20, 5))
-    plt.pcolormesh(spectrogram)
+    spectrogram = spectrogram.detach().cpu()
+    spectrogram = (spectrogram - spectrogram.min()) / (
+        spectrogram.max() - spectrogram.min() + 1e-8
+    )
+
+    plt.figure(figsize=(12, 4))
+    plt.imshow(spectrogram, aspect="auto", origin="lower", cmap="magma")
     plt.title(name)
+    plt.axis("off")
     buf = io.BytesIO()
-    plt.savefig(buf, format="png")
+    plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0)
     buf.seek(0)
 
-    # convert buffer to Tensor
-    image = ToTensor()(PIL.Image.open(buf))
+    image = PIL.Image.open(buf).convert("RGB")
 
     plt.close()
 

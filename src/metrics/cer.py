@@ -1,5 +1,3 @@
-from typing import List
-
 import torch
 from torch import Tensor
 
@@ -17,13 +15,32 @@ class ArgmaxCERMetric(BaseMetric):
         self.text_encoder = text_encoder
 
     def __call__(
-        self, log_probs: Tensor, log_probs_length: Tensor, text: List[str], **kwargs
+        self,
+        text: list[str],
+        predictions: list[str] | None = None,
+        beam_predictions: list[str] | None = None,
+        log_probs: Tensor | None = None,
+        log_probs_length: Tensor | None = None,
+        **kwargs,
     ):
         cers = []
-        predictions = torch.argmax(log_probs.cpu(), dim=-1).numpy()
-        lengths = log_probs_length.detach().numpy()
-        for log_prob_vec, length, target_text in zip(predictions, lengths, text):
+        pred_texts: list[str]
+        if beam_predictions is not None:
+            pred_texts = beam_predictions
+        elif predictions is None:
+            assert (
+                log_probs is not None and log_probs_length is not None
+            ), "Provide predictions or log_probs"
+            argmax = torch.argmax(log_probs.cpu(), dim=-1).numpy()
+            lengths = log_probs_length.detach().numpy()
+            pred_texts = [
+                self.text_encoder.ctc_decode(vec[:length])
+                for vec, length in zip(argmax, lengths)
+            ]
+        else:
+            pred_texts = predictions
+
+        for pred_text, target_text in zip(pred_texts, text):
             target_text = self.text_encoder.normalize_text(target_text)
-            pred_text = self.text_encoder.ctc_decode(log_prob_vec[:length])
             cers.append(calc_cer(target_text, pred_text))
         return sum(cers) / len(cers)

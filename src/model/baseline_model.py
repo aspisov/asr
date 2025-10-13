@@ -7,11 +7,11 @@ class BaselineModel(nn.Module):
     Simple MLP
     """
 
-    def __init__(self, n_feats, n_tokens, fc_hidden=512):
+    def __init__(self, n_feats, vocab_size, fc_hidden=512):
         """
         Args:
             n_feats (int): number of input features.
-            n_tokens (int): number of tokens in the vocabulary.
+            vocab_size (int): number of tokens in the vocabulary.
             fc_hidden (int): number of hidden features.
         """
         super().__init__()
@@ -22,7 +22,7 @@ class BaselineModel(nn.Module):
             nn.ReLU(),
             nn.Linear(in_features=fc_hidden, out_features=fc_hidden),
             nn.ReLU(),
-            nn.Linear(in_features=fc_hidden, out_features=n_tokens),
+            nn.Linear(in_features=fc_hidden, out_features=vocab_size),
         )
 
     def forward(self, spectrogram, spectrogram_length, **batch):
@@ -36,7 +36,7 @@ class BaselineModel(nn.Module):
             output (dict): output dict containing log_probs and
                 transformed lengths.
         """
-        output = self.net(spectrogram.transpose(1, 2))
+        output = self.net(spectrogram)
         log_probs = nn.functional.log_softmax(output, dim=-1)
         log_probs_length = self.transform_input_lengths(spectrogram_length)
         return {"log_probs": log_probs, "log_probs_length": log_probs_length}
