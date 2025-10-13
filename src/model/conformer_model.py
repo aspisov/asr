@@ -260,7 +260,7 @@ class Conformer(nn.Module):
         )
 
         result_info = super().__str__()
-        result_info = result_info + f"\nAll parameters: {all_parameters}"
-        result_info = result_info + f"\nTrainable parameters: {trainable_parameters}"
+        result_info = result_info + f"\nAll parameters: {all_parameters / 1e6:.2f}M"
+        result_info = result_info + f"\nTrainable parameters: {trainable_parameters / 1e6:.2f}M"
 
         return result_info

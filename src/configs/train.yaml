@@ -4,7 +4,7 @@ defaults:
   - metrics: example
   - datasets: librispeech_train
   - dataloader: example
-  - transforms: example
+  - transforms: asr
   - _self_
 optimizer:
   _target_: torch.optim.AdamW
@@ -24,7 +24,7 @@ loss_function:
 text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
 trainer:
-  log_step: 50
+  log_step: 100
   n_epochs: 20
   epoch_len: null
   device_tensors: ["spectrogram", "text_encoded"]
@@ -36,6 +36,6 @@ trainer:
   early_stop: 5
   save_dir: "saved"
   seed: 1
-  beam_size: 1
+  beam_size: 3
   use_amp: true
   amp_dtype: bf16

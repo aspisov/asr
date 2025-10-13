@@ -1,10 +1,10 @@
 train:
   _target_: src.datasets.LibrispeechDataset
-  part: "train-clean-100"
+  part: "train_all"
   instance_transforms: ${transforms.instance_transforms.train}
 val:
   _target_: src.datasets.LibrispeechDataset
-  part: "test-clean"
+  part: "dev-clean"
   instance_transforms: ${transforms.instance_transforms.inference}
 test:
   _target_: src.datasets.LibrispeechDataset

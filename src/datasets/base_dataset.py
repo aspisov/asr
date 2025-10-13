@@ -145,9 +145,13 @@ class BaseDataset(Dataset):
             for transform_name in self.instance_transforms.keys():
                 if transform_name == "get_spectrogram":
                     continue  # skip special key
-                instance_data[transform_name] = self.instance_transforms[
-                    transform_name
-                ](instance_data[transform_name])
+                transform_callable = self.instance_transforms[transform_name]
+                if transform_callable is None:
+                    # allow disabling transforms via null in config
+                    continue
+                instance_data[transform_name] = transform_callable(
+                    instance_data[transform_name]
+                )
         return instance_data
 
     @staticmethod

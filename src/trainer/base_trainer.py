@@ -1,13 +1,8 @@
 from abc import abstractmethod
 
 import torch
-from collections import defaultdict
 from numpy import inf
-from omegaconf import DictConfig
-from omegaconf.base import ContainerMetadata
-from omegaconf.nodes import AnyNode
 from torch.nn.utils import clip_grad_norm_
-from torch.cuda.amp import GradScaler
 from typing import Any
 from tqdm.auto import tqdm
 
@@ -93,7 +88,7 @@ class BaseTrainer:
             amp_enabled and torch.cuda.is_available() and self.device_type == "cuda"
         )
         self.use_grad_scaler = self.amp_enabled and self.amp_dtype == torch.float16
-        self.grad_scaler = GradScaler(enabled=self.use_grad_scaler)
+        self.grad_scaler = torch.amp.GradScaler("cuda", enabled=self.use_grad_scaler)
 
         # define dataloaders
         self.train_dataloader = dataloaders["train"]
@@ -571,7 +566,7 @@ class BaseTrainer:
             self.logger.info(f"Loading model weights from: {pretrained_path} ...")
         else:
             print(f"Loading model weights from: {pretrained_path} ...")
-        checkpoint = torch.load(pretrained_path, self.device)
+        checkpoint = torch.load(pretrained_path, map_location=self.device, weights_only=False)
 
         if checkpoint.get("state_dict") is not None:
             self.model.load_state_dict(checkpoint["state_dict"])

@@ -4,7 +4,7 @@ defaults:
   - metrics: example
   - datasets: onebatchtest
   - dataloader: onebatchtest
-  - transforms: example_only_instance
+  - transforms: asr
   - _self_
 optimizer:
   _target_: torch.optim.AdamW

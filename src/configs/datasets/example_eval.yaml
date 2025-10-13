@@ -1,4 +1,0 @@
-eval:
-  _target_: src.datasets.LibrispeechDataset
-  part: "dev-clean"
-  instance_transforms: ${transforms.instance_transforms.inference}

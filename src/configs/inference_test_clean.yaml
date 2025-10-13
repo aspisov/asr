@@ -3,7 +3,7 @@ defaults:
   - metrics: example
   - datasets: librispeech_eval_test_clean
   - dataloader: example
-  - transforms: example_only_instance
+  - transforms: asr
   - _self_
 text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
@@ -12,5 +12,5 @@ inferencer:
   device: auto
   save_path: "librispeech/test-clean"
   seed: 1
-  from_pretrained: "saved/testing/model_best.pth"
+  from_pretrained: null
   beam_size: 10

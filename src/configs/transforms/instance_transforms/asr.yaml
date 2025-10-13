@@ -1,0 +1,24 @@
+train:
+  get_spectrogram:
+    _target_: src.transforms.augmented_mel.AugmentedMelSpectrogram
+    sample_rate: 16000
+    n_mels: 128
+    shift_p: 0.5
+    max_shift_seconds: 0.1
+    gain_p: 0.5
+    min_gain_db: -6.0
+    max_gain_db: 6.0
+    noise_p: 0.5
+    snr_db_min: 10.0
+    snr_db_max: 30.0
+  spectrogram:
+    _target_: src.transforms.audio_augs.SimpleSpecMask
+    freq_mask_param: 15
+    time_mask_param: 40
+    p: 0.5
+inference:
+  get_spectrogram:
+    _target_: torchaudio.transforms.MelSpectrogram
+    sample_rate: 16000
+    n_mels: 128
+
