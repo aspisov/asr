@@ -196,16 +196,21 @@ class ConformerEncoder(nn.Module):
         )
 
     @staticmethod
-    def _lengths_to_padding_mask(lengths: torch.Tensor, max_len: int) -> torch.Tensor:
-        positions = torch.arange(max_len, device=lengths.device)
-        return positions.unsqueeze(0) >= lengths.unsqueeze(1)
+    def _lengths_to_padding_mask(
+        lengths: torch.Tensor, max_len: int, device: torch.device
+    ) -> torch.Tensor:
+        lengths_on_device = lengths.to(device)
+        positions = torch.arange(max_len, device=device)
+        return positions.unsqueeze(0) >= lengths_on_device.unsqueeze(1)
 
     def forward(
         self, inputs: torch.Tensor, input_lengths: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
         x, output_lengths = self.subsampling(inputs, input_lengths)
         x = self.dropout(x)
-        key_padding_mask = self._lengths_to_padding_mask(output_lengths, x.size(1))
+        key_padding_mask = self._lengths_to_padding_mask(
+            output_lengths, x.size(1), x.device
+        )
         for layer in self.layers:
             x = layer(x, key_padding_mask)
         return x, output_lengths
@@ -244,3 +249,18 @@ class Conformer(nn.Module):
         logits = self.classifier(encoded)
         log_probs = F.log_softmax(logits, dim=-1)
         return {"log_probs": log_probs, "log_probs_length": output_lengths}
+
+    def __str__(self):
+        """
+        Model prints with the number of parameters.
+        """
+        all_parameters = sum([p.numel() for p in self.parameters()])
+        trainable_parameters = sum(
+            [p.numel() for p in self.parameters() if p.requires_grad]
+        )
+
+        result_info = super().__str__()
+        result_info = result_info + f"\nAll parameters: {all_parameters}"
+        result_info = result_info + f"\nTrainable parameters: {trainable_parameters}"
+
+        return result_info

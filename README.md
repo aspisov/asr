@@ -77,3 +77,10 @@ This repository is based on a [PyTorch Project Template](https://github.com/Blin
 ## License
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+
+
+## Extra notes
+
+1. I had to update torch and python version because I was training on the blackwell architecture and it requires torch>=2.7 which requires python>=3.12.
+
+2. I used uv for package management because I think it's way more robust then requirements.txt.

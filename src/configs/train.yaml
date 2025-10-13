@@ -25,7 +25,7 @@ text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
 trainer:
   log_step: 50
-  n_epochs: 80
+  n_epochs: 20
   epoch_len: null
   device_tensors: ["spectrogram", "text_encoded"]
   resume_from: null
@@ -33,7 +33,9 @@ trainer:
   override: True
   monitor: "min val_WER_(Argmax)"
   save_period: 1
-  early_stop: 20
+  early_stop: 5
   save_dir: "saved"
   seed: 1
-  beam_size: 5
+  beam_size: 1
+  use_amp: true
+  amp_dtype: bf16

@@ -1,8 +1,14 @@
 from abc import abstractmethod
 
 import torch
+from collections import defaultdict
 from numpy import inf
+from omegaconf import DictConfig
+from omegaconf.base import ContainerMetadata
+from omegaconf.nodes import AnyNode
 from torch.nn.utils import clip_grad_norm_
+from torch.cuda.amp import GradScaler
+from typing import Any
 from tqdm.auto import tqdm
 
 from src.datasets.data_utils import inf_loop
@@ -63,6 +69,7 @@ class BaseTrainer:
         self.cfg_trainer = self.config.trainer
 
         self.device = device
+        self.device_type = self.device.split(":")[0]
         self.skip_oom = skip_oom
 
         self.logger = logger
@@ -75,8 +82,22 @@ class BaseTrainer:
         self.text_encoder = text_encoder
         self.batch_transforms = batch_transforms
 
+        amp_enabled = bool(self.cfg_trainer.get("use_amp", False))
+        amp_dtype_name = self.cfg_trainer.get("amp_dtype", "bf16")
+        if amp_dtype_name not in {"fp16", "bf16"}:
+            raise ValueError(
+                "trainer.amp_dtype must be either 'fp16' or 'bf16'"
+            )
+        self.amp_dtype = torch.float16 if amp_dtype_name == "fp16" else torch.bfloat16
+        self.amp_enabled = (
+            amp_enabled and torch.cuda.is_available() and self.device_type == "cuda"
+        )
+        self.use_grad_scaler = self.amp_enabled and self.amp_dtype == torch.float16
+        self.grad_scaler = GradScaler(enabled=self.use_grad_scaler)
+
         # define dataloaders
         self.train_dataloader = dataloaders["train"]
+        self.mixed_device_batch = False
         if epoch_len is None:
             # epoch-based training
             self.epoch_len = len(self.train_dataloader)
@@ -330,8 +351,8 @@ class BaseTrainer:
 
             if not_improved_count >= self.early_stop:
                 self.logger.info(
-                    "Validation performance didn't improve for {} epochs. "
-                    "Training stops.".format(self.early_stop)
+                    f"Validation performance didn't improve for {self.early_stop} epochs. "
+                    "Training stops."
                 )
                 stop_process = True
         return best, stop_process, not_improved_count
@@ -371,9 +392,11 @@ class BaseTrainer:
         transforms = self.batch_transforms.get(transform_type)
         if transforms is not None:
             for transform_name in transforms.keys():
-                batch[transform_name] = transforms[transform_name](
-                    batch[transform_name]
-                )
+                tensor = batch[transform_name]
+                transformed = transforms[transform_name](tensor)
+                if isinstance(transformed, torch.Tensor):
+                    transformed = transformed.to(self.device)
+                batch[transform_name] = transformed
         return batch
 
     def _clip_grad_norm(self):
@@ -502,7 +525,7 @@ class BaseTrainer:
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
-        checkpoint = torch.load(resume_path, self.device)
+        checkpoint = torch.load(resume_path, map_location=self.device, weights_only=False)
         self.start_epoch = checkpoint["epoch"] + 1
         self.mnt_best = checkpoint["monitor_best"]
 

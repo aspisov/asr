@@ -1,6 +1,13 @@
 import torch
 import torch.nn.functional as F
 from einops import rearrange
+from loguru import logger
+
+
+def _reduced_length(length: int) -> int:
+    length = (length - 1) // 2 + 1
+    length = (length - 1) // 2 + 1
+    return max(length, 1)
 
 
 def collate_fn(dataset_items: list[dict]):
@@ -24,22 +31,43 @@ def collate_fn(dataset_items: list[dict]):
     texts: list[str] = []
     audio_paths: list[str] = []
 
+    dropped = 0
+
     for item in dataset_items:
         spectrogram = item["spectrogram"].squeeze(0)
         audio = item["audio"].squeeze(0)
         text_encoded = item["text_encoded"].squeeze(0).long()
 
+        spec_len = spectrogram.shape[-1]
+        reduced_len = _reduced_length(spec_len)
+        target_len = text_encoded.shape[0]
+        # if target_len > reduced_len:
+        #     dropped += 1
+        #     logger.warning(
+        #         "Dropping sample %s: target length %s exceeds reduced length %s",
+        #         item.get("audio_path", "<unknown>"),
+        #         target_len,
+        #         reduced_len,
+        #     )
+        #     continue
+
         spectrograms.append(spectrogram)
-        spectrogram_lengths.append(spectrogram.shape[-1])
+        spectrogram_lengths.append(spec_len)
 
         audios.append(audio)
         audio_lengths.append(audio.shape[-1])
 
         text_encoded_list.append(text_encoded)
-        text_encoded_lengths.append(text_encoded.shape[0])
+        text_encoded_lengths.append(target_len)
 
         texts.append(item["text"])
         audio_paths.append(item["audio_path"])
+
+    if not spectrograms:
+        raise ValueError("All samples in the batch were dropped due to target length")
+
+    if dropped:
+        logger.info("Dropped %s samples from batch because of target length", dropped)
 
     max_spec_len = max(spectrogram_lengths)
     max_audio_len = max(audio_lengths) if audio_lengths else 0

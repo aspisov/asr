@@ -1,1 +1,1 @@
-HYDRA_FULL_ERROR=1 uv run python3 train.py -cn=train.yaml
+HYDRA_FULL_ERROR=1 uv run python3 train.py -cn=train.yaml trainer.resume_from=checkpoint-epoch3.pth writer.run_name=testing

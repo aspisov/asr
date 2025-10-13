@@ -39,6 +39,9 @@ def main(config):
     # setup data_loader instances
     # batch_transforms should be put on device
     dataloaders, batch_transforms = get_dataloaders(config, text_encoder, device)
+    steps_per_epoch = config.trainer.get("epoch_len")
+    if steps_per_epoch is None:
+        steps_per_epoch = len(dataloaders["train"])
 
     # build model architecture, then print to console
     model = instantiate(config.model, vocab_size=len(text_encoder)).to(device)
@@ -58,7 +61,11 @@ def main(config):
     # build optimizer, learning rate scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = instantiate(config.optimizer, params=trainable_params)
-    lr_scheduler = instantiate(config.lr_scheduler, optimizer=optimizer)
+    lr_scheduler = instantiate(
+        config.lr_scheduler,
+        optimizer=optimizer,
+        steps_per_epoch=steps_per_epoch,
+    )
 
     # epoch_len = number of iterations for iteration-based training
     # epoch_len = None or len(dataloader) for epoch-based training
