@@ -1,4 +1,4 @@
 defaults:
-  - instance_transforms: asr
+  - instance_transforms: example
   - batch_transforms: example
   - _self_

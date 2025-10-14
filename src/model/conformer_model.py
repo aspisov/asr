@@ -62,29 +62,78 @@ class FeedForward(nn.Module):
         return self.dropout(x)
 
 
+class RotaryEmbedding(nn.Module):
+    def __init__(self, dim: int, base: int = 10000) -> None:
+        super().__init__()
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
+
+    def get_cos_sin(
+        self, seq_len: int, device: torch.device, dtype: torch.dtype
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        positions = torch.arange(seq_len, device=device, dtype=self.inv_freq.dtype)
+        freqs = torch.einsum("i,j->ij", positions, self.inv_freq)
+        emb = torch.cat((freqs, freqs), dim=-1)
+        cos = emb.cos().to(dtype)
+        sin = emb.sin().to(dtype)
+        return cos, sin
+
+    def apply_rotary(
+        self, x: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
+    ) -> torch.Tensor:
+        x_1 = x[..., ::2]
+        x_2 = x[..., 1::2]
+        rotated = torch.stack((-x_2, x_1), dim=-1).reshape_as(x)
+        return (x * cos) + (rotated * sin)
+
+
 class MultiHeadSelfAttention(nn.Module):
     def __init__(self, d_model: int, num_heads: int, dropout: float) -> None:
         super().__init__()
         self.layer_norm = nn.LayerNorm(d_model)
-        self.attention = nn.MultiheadAttention(
-            embed_dim=d_model,
-            num_heads=num_heads,
-            dropout=dropout,
-            batch_first=True,
-        )
+        self.num_heads = num_heads
+        self.head_dim = d_model // num_heads
+        if self.head_dim * num_heads != d_model:
+            msg = "d_model must be divisible by num_heads"
+            raise ValueError(msg)
+        self.rotary_embedding = RotaryEmbedding(self.head_dim)
+        self.qkv_proj = nn.Linear(d_model, 3 * d_model, bias=False)
+        self.out_proj = nn.Linear(d_model, d_model, bias=False)
+        self.attn_dropout_p = dropout
         self.dropout = nn.Dropout(dropout)
 
     def forward(
         self, x: torch.Tensor, key_padding_mask: torch.Tensor | None
     ) -> torch.Tensor:
         x_norm = self.layer_norm(x)
-        attn_output, _ = self.attention(
-            x_norm,
-            x_norm,
-            x_norm,
-            key_padding_mask=key_padding_mask,
-            need_weights=False,
+        batch_size, seq_len, _ = x_norm.shape
+        qkv = self.qkv_proj(x_norm)
+        qkv = qkv.view(batch_size, seq_len, self.num_heads, 3 * self.head_dim)
+        qkv = qkv.permute(0, 2, 1, 3)
+        q, k, v = qkv.chunk(3, dim=-1)
+
+        cos, sin = self.rotary_embedding.get_cos_sin(
+            seq_len, x.device, x.dtype
         )
+        cos = cos.unsqueeze(0).unsqueeze(0)
+        sin = sin.unsqueeze(0).unsqueeze(0)
+        q = self.rotary_embedding.apply_rotary(q, cos, sin)
+        k = self.rotary_embedding.apply_rotary(k, cos, sin)
+
+        attn_mask = None
+        if key_padding_mask is not None:
+            attn_mask = key_padding_mask.unsqueeze(1).unsqueeze(2)
+
+        attn_output = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            attn_mask=attn_mask,
+            dropout_p=self.attn_dropout_p if self.training else 0.0,
+        )
+        attn_output = attn_output.permute(0, 2, 1, 3).contiguous()
+        attn_output = attn_output.view(batch_size, seq_len, -1)
+        attn_output = self.out_proj(attn_output)
         return self.dropout(attn_output)
 
 

@@ -20,9 +20,11 @@ loss_function:
   _target_: src.loss.CTCLossWrapper
 text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
+  beam_size: 5
+  kenlm_model_path: null
 trainer:
   log_step: 50
-  n_epochs: 20
+  n_epochs: 40
   epoch_len: 10
   device_tensors: ["spectrogram", "text_encoded"] # which tensors should be on device (ex. GPU)
   resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
@@ -33,4 +35,4 @@ trainer:
   early_stop: ${trainer.n_epochs} # epochs for early stopping
   save_dir: "saved"
   seed: 1
-  beam_size: 5
+  beam_size: 3

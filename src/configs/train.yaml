@@ -23,13 +23,15 @@ loss_function:
   _target_: src.loss.CTCLossWrapper
 text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
+  beam_size: 5
+  kenlm_model_path: null
 trainer:
   log_step: 100
-  n_epochs: 20
+  n_epochs: 10
   epoch_len: null
   device_tensors: ["spectrogram", "text_encoded"]
   resume_from: null
-  device: auto
+  device: cuda
   override: True
   monitor: "min val_WER_(Argmax)"
   save_period: 1

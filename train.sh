@@ -1,1 +1,1 @@
-HYDRA_FULL_ERROR=1 uv run python3 train.py -cn=train.yaml writer.run_name=aug
+HYDRA_FULL_ERROR=1 uv run python3 train.py -cn=train.yaml writer.run_name=rope 

@@ -18,16 +18,13 @@ class ArgmaxWERMetric(BaseMetric):
         self,
         text: list[str],
         predictions: list[str] | None = None,
-        beam_predictions: list[str] | None = None,
         log_probs: Tensor | None = None,
         log_probs_length: Tensor | None = None,
         **kwargs,
     ):
         wers = []
         pred_texts: list[str]
-        if beam_predictions is not None:
-            pred_texts = beam_predictions
-        elif predictions is None:
+        if predictions is None:
             assert (
                 log_probs is not None and log_probs_length is not None
             ), "Provide predictions or log_probs"
