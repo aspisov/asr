@@ -15,29 +15,55 @@ class ArgmaxWERMetric(BaseMetric):
         self.text_encoder = text_encoder
 
     def __call__(
-        self,
-        text: list[str],
-        predictions: list[str] | None = None,
-        log_probs: Tensor | None = None,
-        log_probs_length: Tensor | None = None,
-        **kwargs,
+        self, log_probs: Tensor, log_probs_length: Tensor, text: list[str], **kwargs
     ):
         wers = []
-        pred_texts: list[str]
-        if predictions is None:
-            assert (
-                log_probs is not None and log_probs_length is not None
-            ), "Provide predictions or log_probs"
-            argmax = torch.argmax(log_probs.cpu(), dim=-1).numpy()
-            lengths = log_probs_length.detach().numpy()
-            pred_texts = [
-                self.text_encoder.ctc_decode(vec[:length])
-                for vec, length in zip(argmax, lengths)
-            ]
-        else:
-            pred_texts = predictions
-
-        for pred_text, target_text in zip(pred_texts, text):
+        predictions = torch.argmax(log_probs.cpu(), dim=-1).numpy()
+        lengths = log_probs_length.detach().numpy()
+        for log_prob_vec, length, target_text in zip(predictions, lengths, text):
             target_text = self.text_encoder.normalize_text(target_text)
+            pred_text = self.text_encoder.ctc_decode(log_prob_vec[:length])
+            wers.append(calc_wer(target_text, pred_text))
+        return sum(wers) / len(wers)
+
+
+class BeamSearchWERMetric(BaseMetric):
+    def __init__(self, text_encoder, beam_size=10, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.text_encoder = text_encoder
+        self.beam_size = beam_size
+
+    def __call__(
+        self, logits: Tensor, log_probs_length: Tensor, text: list[str], **kwargs
+    ):
+        wers = []
+        logits_np = logits.detach().cpu().numpy()
+        lengths = log_probs_length.detach().cpu().numpy()
+        for logit, length, target_text in zip(logits_np, lengths, text):
+            target_text = self.text_encoder.normalize_text(target_text)
+            pred_text = self.text_encoder.ctc_beam_search(
+                False, None, None, logit[:length], self.beam_size
+            )
+            wers.append(calc_wer(target_text, pred_text))
+        return sum(wers) / len(wers)
+
+
+class BeamSearchLMWERMetric(BaseMetric):
+    def __init__(self, text_encoder, beam_size=100, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.text_encoder = text_encoder
+        self.beam_size = beam_size
+
+    def __call__(
+        self, logits: Tensor, log_probs_length: Tensor, text: list[str], **kwargs
+    ):
+        wers = []
+        logits_np = logits.detach().cpu().numpy()
+        lengths = log_probs_length.detach().cpu().numpy()
+        for logit, length, target_text in zip(logits_np, lengths, text):
+            target_text = self.text_encoder.normalize_text(target_text)
+            pred_text = self.text_encoder.ctc_beam_search(
+                True, None, None, logit[:length], self.beam_size
+            )
             wers.append(calc_wer(target_text, pred_text))
         return sum(wers) / len(wers)

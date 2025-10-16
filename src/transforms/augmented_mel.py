@@ -95,11 +95,9 @@ class AugmentedMelSpectrogram(nn.Module):
                 snr_db = random.uniform(self.snr_db_min, self.snr_db_max)
                 snr_linear = 10.0 ** (snr_db / 10.0)
                 noise_power = max(signal_power / snr_linear, 1e-12)
-                noise = torch.randn_like(y) * (noise_power ** 0.5)
+                noise = torch.randn_like(y) * (noise_power**0.5)
                 y = (y + noise).clamp_(-1.0, 1.0)
 
         # mel spectrogram (n_mels, time)
         spec = self.mel(y)
         return spec
-
-

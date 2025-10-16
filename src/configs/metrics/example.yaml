@@ -4,3 +4,15 @@ inference: # metrics that are calculated during inference (eval)
     name: "CER_(Argmax)" # it is better to avoid spaces in names
   - _target_: src.metrics.ArgmaxWERMetric
     name: "WER_(Argmax)"
+  - _target_: src.metrics.BeamSearchCERMetric
+    name: "CER_(Beam)"
+    beam_size: 10
+  - _target_: src.metrics.BeamSearchWERMetric
+    name: "WER_(Beam)"
+    beam_size: 10
+  - _target_: src.metrics.BeamSearchLMCERMetric
+    name: "CER_(Beam+LM)"
+    beam_size: 100
+  - _target_: src.metrics.BeamSearchLMWERMetric
+    name: "WER_(Beam+LM)"
+    beam_size: 100

@@ -1,6 +1,3 @@
-import json
-from pathlib import Path
-
 import torch
 from tqdm.auto import tqdm
 
@@ -123,92 +120,46 @@ class Inferencer(BaseTrainer):
                 the dataloader (possibly transformed via batch transform)
                 and model outputs.
         """
+
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)  # transform batch on device -- faster
 
         outputs = self.model(**batch)
         batch.update(outputs)
 
-        predictions, raw_predictions, beam_predictions = self._decode_batch(batch)
-
-        batch["predictions"] = predictions
-        batch["beam_predictions"] = beam_predictions
-        batch["raw_predictions"] = raw_predictions
-
-        if metrics is not None and "text" in batch:
-            batch_with_predictions = batch | {
-                "predictions": predictions,
-                "beam_predictions": beam_predictions,
-            }
+        if metrics is not None:
             for met in self.metrics["inference"]:
-                metrics.update(met.name, met(**batch_with_predictions))
+                metrics.update(met.name, met(**batch))
 
-        if self.save_path is not None:
-            self._save_predictions(
-                batch, predictions, raw_predictions, beam_predictions, part
+        # Some saving logic. This is an example
+        # Use if you need to save predictions on disk
+
+        batch_size = batch["log_probs"].shape[0]
+        current_id = batch_idx * batch_size
+
+        for i in range(batch_size):
+            # clone because of
+            # https://github.com/pytorch/pytorch/issues/1995
+            log_probs = batch["log_probs"][i].clone()
+            logits = batch["logits"][i].clone()
+            probs = batch["probs"][i].clone()
+            length = batch["log_probs_length"][i].clone()
+            label = batch["text"][i]
+            pred_label = self.text_encoder.ctc_beam_search(
+                True, log_probs, probs, logits[:length], 100
             )
 
-        return batch
+            output_id = current_id + i
 
-    def _decode_batch(self, batch):
-        log_probs = batch["log_probs"].detach().cpu()
-        log_probs_length = batch["log_probs_length"].detach().cpu()
-
-        predictions = []
-        raw_predictions = []
-        beam_predictions = []
-        beam_size = self.config.inferencer.get("beam_size")
-
-        for log_prob_vec, length in zip(log_probs, log_probs_length):
-            decoded, raw, beams = self.text_encoder.decode_logits(
-                log_prob_vec,
-                int(length),
-                beam_size=beam_size,
-            )
-            predictions.append(decoded)
-            raw_predictions.append(raw)
-            beam_predictions.append(beams[0].text if beams else decoded)
-        return predictions, raw_predictions, beam_predictions
-
-    def _save_predictions(
-        self, batch, predictions, raw_predictions, beam_predictions, part
-    ):
-        texts = batch.get("text")
-        normalized_targets = None
-        if texts is not None:
-            normalized_targets = [self.text_encoder.normalize_text(t) for t in texts]
-
-        save_dir = self.save_path / part
-        save_dir.mkdir(exist_ok=True, parents=True)
-
-        metadata = []
-        for prediction_argmax, raw_prediction, beam_prediction, audio_path in zip(
-            predictions,
-            raw_predictions,
-            beam_predictions,
-            batch["audio_path"],
-        ):
-            prediction_path = Path(audio_path)
-            save_path = save_dir / f"{prediction_path.stem}.txt"
-
-            with save_path.open("w", encoding="utf-8") as f:
-                f.write(beam_prediction)
-
-            metadata_entry = {
-                "utt_id": prediction_path.stem,
-                "prediction_argmax": prediction_argmax,
-                "prediction_beam": beam_prediction,
-                "raw_prediction": raw_prediction,
+            output = {
+                "pred_label": pred_label,
+                "label": label,
             }
-            metadata.append(metadata_entry)
 
-        if normalized_targets is not None:
-            for meta, target in zip(metadata, normalized_targets):
-                meta["target"] = target
-
-        metadata_path = save_dir / "metadata.json"
-        with metadata_path.open("w", encoding="utf-8") as f:
-            json.dump(metadata, f, ensure_ascii=False, indent=2)
+            if self.save_path is not None:
+                # you can use safetensors or other lib here
+                torch.save(output, self.save_path / part / f"output_{output_id}.pth")
+        return batch
 
     def _inference_part(self, part, dataloader):
         """

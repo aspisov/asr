@@ -3,7 +3,6 @@ from abc import abstractmethod
 import torch
 from numpy import inf
 from torch.nn.utils import clip_grad_norm_
-from typing import Any
 from tqdm.auto import tqdm
 
 from src.datasets.data_utils import inf_loop
@@ -80,9 +79,7 @@ class BaseTrainer:
         amp_enabled = bool(self.cfg_trainer.get("use_amp", False))
         amp_dtype_name = self.cfg_trainer.get("amp_dtype", "bf16")
         if amp_dtype_name not in {"fp16", "bf16"}:
-            raise ValueError(
-                "trainer.amp_dtype must be either 'fp16' or 'bf16'"
-            )
+            raise ValueError("trainer.amp_dtype must be either 'fp16' or 'bf16'")
         self.amp_dtype = torch.float16 if amp_dtype_name == "fp16" else torch.bfloat16
         self.amp_enabled = (
             amp_enabled and torch.cuda.is_available() and self.device_type == "cuda"
@@ -191,7 +188,7 @@ class BaseTrainer:
 
             # print logged information to the screen
             for key, value in logs.items():
-                self.logger.info(f"    {key:15s}: {value}")
+                self.logger.info(f"    {key: 15s}: {value}")
 
             # evaluate model performance according to configured metric,
             # save best checkpoint as model_best
@@ -331,8 +328,7 @@ class BaseTrainer:
                     improved = False
             except KeyError:
                 self.logger.warning(
-                    f"Warning: Metric '{self.mnt_metric}' is not found. "
-                    "Model performance monitoring is disabled."
+                    f"Warning: Metric '{self.mnt_metric}' is not found. Model performance monitoring is disabled."
                 )
                 self.mnt_mode = "off"
                 improved = False
@@ -346,8 +342,7 @@ class BaseTrainer:
 
             if not_improved_count >= self.early_stop:
                 self.logger.info(
-                    f"Validation performance didn't improve for {self.early_stop} epochs. "
-                    "Training stops."
+                    f"Validation performance didn't improve for {self.early_stop} epochs. Training stops."
                 )
                 stop_process = True
         return best, stop_process, not_improved_count
@@ -520,7 +515,9 @@ class BaseTrainer:
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
-        checkpoint = torch.load(resume_path, map_location=self.device, weights_only=False)
+        checkpoint = torch.load(
+            resume_path, map_location=self.device, weights_only=False
+        )
         self.start_epoch = checkpoint["epoch"] + 1
         self.mnt_best = checkpoint["monitor_best"]
 
@@ -566,7 +563,9 @@ class BaseTrainer:
             self.logger.info(f"Loading model weights from: {pretrained_path} ...")
         else:
             print(f"Loading model weights from: {pretrained_path} ...")
-        checkpoint = torch.load(pretrained_path, map_location=self.device, weights_only=False)
+        checkpoint = torch.load(
+            pretrained_path, map_location=self.device, weights_only=False
+        )
 
         if checkpoint.get("state_dict") is not None:
             self.model.load_state_dict(checkpoint["state_dict"])

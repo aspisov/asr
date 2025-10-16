@@ -112,9 +112,7 @@ class MultiHeadSelfAttention(nn.Module):
         qkv = qkv.permute(0, 2, 1, 3)
         q, k, v = qkv.chunk(3, dim=-1)
 
-        cos, sin = self.rotary_embedding.get_cos_sin(
-            seq_len, x.device, x.dtype
-        )
+        cos, sin = self.rotary_embedding.get_cos_sin(seq_len, x.device, x.dtype)
         cos = cos.unsqueeze(0).unsqueeze(0)
         sin = sin.unsqueeze(0).unsqueeze(0)
         q = self.rotary_embedding.apply_rotary(q, cos, sin)
@@ -297,7 +295,13 @@ class Conformer(nn.Module):
         encoded, output_lengths = self.encoder(inputs, input_lengths)
         logits = self.classifier(encoded)
         log_probs = F.log_softmax(logits, dim=-1)
-        return {"log_probs": log_probs, "log_probs_length": output_lengths}
+        probs = F.softmax(logits, dim=-1)
+        return {
+            "logits": logits,
+            "log_probs": log_probs,
+            "probs": probs,
+            "log_probs_length": output_lengths,
+        }
 
     def __str__(self):
         """
@@ -309,7 +313,9 @@ class Conformer(nn.Module):
         )
 
         result_info = super().__str__()
-        result_info = result_info + f"\nAll parameters: {all_parameters / 1e6:.2f}M"
-        result_info = result_info + f"\nTrainable parameters: {trainable_parameters / 1e6:.2f}M"
+        result_info = result_info + f"\nAll parameters: {all_parameters / 1e6: .2f}M"
+        result_info = (
+            result_info + f"\nTrainable parameters: {trainable_parameters / 1e6: .2f}M"
+        )
 
         return result_info

@@ -1,18 +1,25 @@
 defaults:
   - model: conformer
   - metrics: example
-  - datasets: librispeech_eval_test_clean
+  - datasets: custom_dir
   - dataloader: example
   - transforms: asr
   - _self_
+
 text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
   beam_size: 5
-  kenlm_model_path: saved/3-gram.arpa
+  kenlm_model_path: null
+
 inferencer:
   device_tensors: ["spectrogram", "text_encoded"]
   device: auto
-  save_path: "librispeech/test-clean"
+  save_path: "custom_dataset/preds"
   seed: 1
   from_pretrained: null
   beam_size: 10
+
+custom_dataset:
+  dataset_root: null
+  audio_dir: ${custom_dataset.dataset_root}/audio
+  transcription_dir: ${custom_dataset.dataset_root}/transcriptions

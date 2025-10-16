@@ -14,7 +14,9 @@ class RandomGain(nn.Module):
         p: probability to apply
     """
 
-    def __init__(self, min_gain_db: float = -6.0, max_gain_db: float = 6.0, p: float = 0.5) -> None:
+    def __init__(
+        self, min_gain_db: float = -6.0, max_gain_db: float = 6.0, p: float = 0.5
+    ) -> None:
         super().__init__()
         self.min_gain_db = float(min_gain_db)
         self.max_gain_db = float(max_gain_db)
@@ -37,7 +39,9 @@ class AdditiveGaussianNoise(nn.Module):
         p: probability to apply
     """
 
-    def __init__(self, snr_db_min: float = 10.0, snr_db_max: float = 30.0, p: float = 0.5) -> None:
+    def __init__(
+        self, snr_db_min: float = 10.0, snr_db_max: float = 30.0, p: float = 0.5
+    ) -> None:
         super().__init__()
         self.snr_db_min = float(snr_db_min)
         self.snr_db_max = float(snr_db_max)
@@ -53,7 +57,7 @@ class AdditiveGaussianNoise(nn.Module):
         snr_db = random.uniform(self.snr_db_min, self.snr_db_max)
         snr_linear = 10.0 ** (snr_db / 10.0)
         noise_power = signal_power / snr_linear
-        noise = torch.randn_like(audio) * (noise_power ** 0.5)
+        noise = torch.randn_like(audio) * (noise_power**0.5)
         return (audio + noise).clamp_(-1.0, 1.0)
 
 
@@ -66,7 +70,9 @@ class RandomTimeShift(nn.Module):
         p: probability to apply
     """
 
-    def __init__(self, max_shift_seconds: float = 0.1, sample_rate: int = 16000, p: float = 0.5) -> None:
+    def __init__(
+        self, max_shift_seconds: float = 0.1, sample_rate: int = 16000, p: float = 0.5
+    ) -> None:
         super().__init__()
         self.max_shift_seconds = float(max_shift_seconds)
         self.sample_rate = int(sample_rate)
@@ -120,5 +126,3 @@ class SimpleSpecMask(nn.Module):
         if squeeze:
             spec = spec.unsqueeze(0)
         return spec
-
-
