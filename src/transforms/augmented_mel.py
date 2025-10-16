@@ -65,7 +65,6 @@ class AugmentedMelSpectrogram(nn.Module):
         self.snr_db_max = float(snr_db_max)
 
     def forward(self, audio: torch.Tensor) -> torch.Tensor:
-        # audio expected shape: (1, T)
         y = audio
 
         # time shift
@@ -98,6 +97,6 @@ class AugmentedMelSpectrogram(nn.Module):
                 noise = torch.randn_like(y) * (noise_power**0.5)
                 y = (y + noise).clamp_(-1.0, 1.0)
 
-        # mel spectrogram (n_mels, time)
+        # mel spectrogram
         spec = self.mel(y)
         return spec

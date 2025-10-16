@@ -174,16 +174,24 @@ class Trainer(BaseTrainer):
 
         log_probs = batch["log_probs"].detach().cpu()
         lengths = batch["log_probs_length"].detach().cpu()
+        logits = batch.get("logits")
+        if logits is not None:
+            logits = logits.detach().cpu()
 
         predictions = []
         raw_predictions = []
         beam_predictions = []
         beam_size = self.config.trainer.get("beam_size")
 
-        for sample_log_prob, length in zip(log_probs, lengths):
+        for idx, (sample_log_prob, length) in enumerate(zip(log_probs, lengths)):
+            sample_logits = sample_log_prob
+            if logits is not None:
+                sample_logits = logits[idx]
+
             decoded, raw, beams = self.text_encoder.decode_logits(
-                sample_log_prob,
-                int(length),
+                logits=sample_logits,
+                log_probs=sample_log_prob,
+                length=int(length),
                 beam_size=beam_size,
             )
             predictions.append(decoded)

@@ -9,6 +9,8 @@ text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
   beam_size: 5
   kenlm_model_path: null
+  alpha: 0.5
+  beta: 1.5
 inferencer:
   device_tensors: ["spectrogram", "text_encoded"]
   device: auto

@@ -50,7 +50,6 @@ class AdditiveGaussianNoise(nn.Module):
     def forward(self, audio: torch.Tensor) -> torch.Tensor:
         if random.random() >= self.p:
             return audio
-        # audio: (1, T) expected
         signal_power = audio.pow(2).mean().item()
         if signal_power <= 1e-12:
             return audio

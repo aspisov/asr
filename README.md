@@ -1,86 +1,79 @@
-# Automatic Speech Recognition (ASR) with PyTorch
+# Automatic Speech Recognition Homework
 
-<p align="center">
-  <a href="#about">About</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#license">License</a>
-</p>
+## Overview
 
-## About
+This repository implements the full pipeline required for the HSE DLA 2025 ASR homework. It builds on the official PyTorch template and extends it.
 
-This repository contains a template for solving ASR task with PyTorch. This template branch is a part of the [HSE DLA course](https://github.com/markovka17/dla) ASR homework. Some parts of the code are missing (or do not follow the most optimal design choices...) and students are required to fill these parts themselves (as well as writing their own models, etc.).
+## Environment & Installation
 
-See the task assignment [here](https://github.com/markovka17/dla/tree/2024/hw1_asr).
+> **Python**: 3.12 (required by Torch 2.7 which is used on Blackwell GPUs)
+> **Package manager**: [uv](https://docs.astral.sh/uv/)
 
-## Installation
-
-Follow these steps to install the project:
-
-0. (Optional) Create and activate new environment using [`conda`](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html) or `venv` ([`+pyenv`](https://github.com/pyenv/pyenv)).
-
-   a. `conda` version:
-
-   ```bash
-   # create env
-   conda create -n project_env python=PYTHON_VERSION
-
-   # activate env
-   conda activate project_env
-   ```
-
-   b. `venv` (`+pyenv`) version:
-
-   ```bash
-   # create env
-   ~/.pyenv/versions/PYTHON_VERSION/bin/python3 -m venv project_env
-
-   # alternatively, using default python version
-   python3 -m venv project_env
-
-   # activate env
-   source project_env/bin/activate
-   ```
-
-1. Install all required packages
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Install `pre-commit`:
-   ```bash
-   pre-commit install
-   ```
-
-## How To Use
-
-To train a model, run the following command:
+Clone the repository and install all dependencies:
 
 ```bash
-python3 train.py -cn=CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
+uv sync
 ```
 
-Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
+### Artifacts
 
-To run inference (evaluate the model or save predictions):
+The repository expects the following resources, all downloadable via notebook or CLI commands:
+
+- Trained checkpoints (hosted on HuggingFace):
+  - Final model: `https://huggingface.co/aspisov/asr/resolve/main/model_best-193347.pth`
+- KenLM language model + vocabulary:
+  - `https://openslr.org/resources/11/3-gram.arpa.gz`
+  - `https://openslr.org/resources/11/librispeech-vocab.txt`
+
+Place them under `saved/` or run the commands embedded in the demo notebook (see below).
+
+## Training
+
+The main schedule trains on LibriSpeech combined splits:
 
 ```bash
-python3 inference.py HYDRA_CONFIG_ARGUMENTS
+uv run python3 train.py -cn=train.yaml
 ```
 
-## Credits
+## Evaluation & Inference
 
-This repository is based on a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template).
+### LibriSpeech evaluation scripts
+
+
+```bash
+# test-clean
+uv run python3 inference.py -cn=inference_test_clean.yaml inferencer.from_pretrained=path/to/checkpoint.pth
+
+# test-other
+uv run python3 inference.py -cn=inference_test_other.yaml inferencer.from_pretrained=path/to/checkpoint.pth
+```
+
+### Custom directory inference
+
+To evaluate on an arbitrary folder structured as required by the homework (audio + optional transcriptions), run:
+
+```bash
+uv run python3 inference.py -cn=inference_custom.yaml inferencer.from_pretrained=path/to/checkpoint.pth custom_dataset.dataset_root=path/to/dataset
+```
+
+## Demo Notebook
+
+`notebooks/demo_notebook.ipynb` is designed to run on Google Colab from a clean environment. It covers:
+
+1. Cloning the repo and installing dependencies via `uv`
+2. Downloading checkpoints, KenLM files, and vocab
+3. Running inference on LibriSpeech custom dataset as well as LibriSpeech test-clean and test-other
+
+## Experiments & Results
+
+| Experiment | Checkpoint | CER (test-clean) | WER (test-clean) | CER (test-other) | WER (test-other) |
+|------------|------------|------------|------------|------------|------------|
+| Full training (20M parameters conformer) | model_best-193347.pth | 5.2 | 14.27 | 15.02 | 35.04 |
+
+## Logging
+
+Logging is done via CometML. You can find the report [here](https://www.comet.com/dmitriy-aspisov/pytorch-template-asr-example/view/new/panels).
 
 ## License
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
-
-
-## Extra notes
-
-1. I had to update torch and python version because I was training on the blackwell architecture and it requires torch>=2.7 which requires python>=3.12.
-
-2. I used uv for package management because I think it's way more robust then requirements.txt.
+[MIT](./LICENSE)

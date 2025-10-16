@@ -4,12 +4,6 @@ from einops import rearrange
 from loguru import logger
 
 
-def _reduced_length(length: int) -> int:
-    length = (length - 1) // 2 + 1
-    length = (length - 1) // 2 + 1
-    return max(length, 1)
-
-
 def collate_fn(dataset_items: list[dict]):
     """
     Collate and pad fields in the dataset items.
@@ -39,17 +33,7 @@ def collate_fn(dataset_items: list[dict]):
         text_encoded = item["text_encoded"].squeeze(0).long()
 
         spec_len = spectrogram.shape[-1]
-        reduced_len = _reduced_length(spec_len)
         target_len = text_encoded.shape[0]
-        # if target_len > reduced_len:
-        #     dropped += 1
-        #     logger.warning(
-        #         "Dropping sample %s: target length %s exceeds reduced length %s",
-        #         item.get("audio_path", "<unknown>"),
-        #         target_len,
-        #         reduced_len,
-        #     )
-        #     continue
 
         spectrograms.append(spectrogram)
         spectrogram_lengths.append(spec_len)

@@ -1,0 +1,57 @@
+defaults:
+  - model: conformer
+  - writer: cometml
+  - metrics: example
+  - datasets: onebatchtest
+  - dataloader: onebatchtest
+  - transforms: asr
+  - _self_
+
+writer:
+  run_name: onebatch_beam
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 3e-4
+
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.OneCycleLR
+  max_lr: 1e-3
+  pct_start: 0.1
+  steps_per_epoch: ${trainer.epoch_len}
+  epochs: ${trainer.n_epochs}
+  anneal_strategy: cos
+
+loss_function:
+  _target_: src.loss.CTCLossWrapper
+
+text_encoder:
+  _target_: src.text_encoder.CTCTextEncoder
+  beam_size: 10
+  kenlm_model_path: null
+
+datasets:
+  train:
+    limit: ${dataloader.batch_size}
+  val:
+    limit: ${dataloader.batch_size}
+
+dataloader:
+  batch_size: 4
+  num_workers: 0
+  pin_memory: false
+
+trainer:
+  device_tensors: ["spectrogram", "text_encoded"]  # which tensors should be on device (ex. GPU)
+  log_step: 50
+  n_epochs: 7
+  epoch_len: 10
+  device: auto
+  monitor: min val_WER_(Beam)
+  save_period: 1
+  early_stop: 1
+  seed: 1
+  beam_size: 10
+  use_amp: false
+  override: true
+  save_dir: saved

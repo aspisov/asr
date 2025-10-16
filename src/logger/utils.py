@@ -52,13 +52,17 @@ def plot_spectrogram(spectrogram, name=None):
     Returns:
         image (Image): image of the spectrogram
     """
-    spectrogram = spectrogram.detach().cpu()
-    spectrogram = (spectrogram - spectrogram.min()) / (
-        spectrogram.max() - spectrogram.min() + 1e-8
-    )
+    spec = spectrogram.detach().cpu().float()
+    if spec.dim() == 3:
+        spec = spec.squeeze(0)
+    if spec.shape[0] < spec.shape[1]:
+        spec = spec.transpose(0, 1)
+
+    spec = spec.clamp_min(1e-5).log10().mul_(10.0)
+    spec = (spec - spec.min()) / (spec.max() - spec.min() + 1e-8)
 
     plt.figure(figsize=(12, 4))
-    plt.imshow(spectrogram, aspect="auto", origin="lower", cmap="magma")
+    plt.imshow(spec, aspect="auto", origin="lower", cmap="magma")
     plt.title(name)
     plt.axis("off")
     buf = io.BytesIO()

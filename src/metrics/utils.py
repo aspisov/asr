@@ -1,6 +1,3 @@
-# Based on seminar materials
-
-
 def _levenshtein_distance(seq_a, seq_b):
     len_a = len(seq_a)
     len_b = len(seq_b)

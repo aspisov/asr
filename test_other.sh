@@ -1,1 +1,0 @@
-HYDRA_FULL_ERROR=1 uv run python3 inference.py -cn=inference_test_other.yaml inferencer.from_pretrained=saved/no_aug/model_best.pth
